@@ -1,0 +1,13 @@
+global:
+  resolve_timeout: 3m
+
+route:
+  receiver: 'default'
+  group_by: ['alertname']
+  group_wait: 20s
+  group_interval: 2m
+  repeat_interval: 3h
+
+receivers:
+  - name: 'default'
+    # Webhook / email / slack add after that.
