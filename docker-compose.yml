@@ -1,0 +1,123 @@
+version: "3.8"
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.0
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=48h
+      - --storage.tsdb.retention.size=900MB
+      - --query.max-concurrency=2
+      - --web.enable-lifecycle
+      - --storage.tsdb.wal-compression
+      - --enable-feature=memory-snapshot-on-shutdown
+    volumes:
+      - prometheus_data:/prometheus
+      - /opt/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /opt/monitoring/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+    expose:
+      - "9090"
+    restart: unless-stopped
+    mem_limit: 1200m
+    cpu_shares: 512
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - alertmanager_data:/alertmanager
+      - /opt/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    expose:
+      - "9093"
+    restart: unless-stopped
+    mem_limit: 160m
+    cpu_shares: 128
+
+  blackbox:
+    image: prom/blackbox-exporter:v0.25.0
+    container_name: blackbox
+    command:
+      - --config.file=/etc/blackbox/blackbox.yml
+      - --web.listen-address=0.0.0.0:9115
+    volumes:
+      - /opt/monitoring/blackbox.yml:/etc/blackbox/blackbox.yml:ro
+    expose:
+      - "9115"
+    restart: unless-stopped
+    mem_limit: 80m
+    cpu_shares: 64
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: node-exporter
+    command:
+      - --path.rootfs=/host
+      - --web.listen-address=0.0.0.0:9100
+      - --collector.disable-defaults
+      - --collector.cpu
+      - --collector.meminfo
+      - --collector.filesystem
+      - --collector.loadavg
+      - --collector.netdev
+      - --collector.netclass
+      - --collector.diskstats
+    volumes:
+      - /:/host:ro,rslave
+    expose:
+      - "9100"
+    restart: unless-stopped
+    pid: host
+    mem_limit: 110m
+    cpu_shares: 96
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.2
+    container_name: cadvisor
+    command:
+      - --port=8080
+      - --housekeeping_interval=30s
+      - --max_housekeeping_interval=60s
+      - --disable_metrics=percpu,sched,process,thread,hugetlb,referenced,advtcp
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    expose:
+      - "8080"
+    restart: unless-stopped
+    privileged: true
+    mem_limit: 180m
+    cpu_shares: 128
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-ChangeMe123!}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_SERVER_ROOT_URL=https://monitor.domain.com
+      - GF_SERVER_DOMAIN=monitor.domain.com
+      - GF_LOG_MODE=console
+      - GF_UNIFIED_ALERTING_ENABLED=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"   # Coolify domain binding / reverse proxy
+    restart: unless-stopped
+    mem_limit: 520m
+    cpu_shares: 256
+
+volumes:
+  prometheus_data:
+  alertmanager_data:
+  grafana_data:
