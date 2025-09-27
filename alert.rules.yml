@@ -1,0 +1,38 @@
+groups:
+  - name: basic-health
+    rules:
+      - alert: NodeExporterDown
+        expr: up{job="node"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Node exporter down"
+          description: "node-exporter scrape failing."
+
+      - alert: HighLoadAverage
+        expr: (node_load1) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High load"
+          description: "Load average > 2 for 5m."
+
+      - alert: BlackboxProbeFailed
+        expr: probe_success == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Target down"
+          description: "Blackbox probe failed for {{ $labels.target }}."
+
+      - alert: SlowHTTP
+        expr: probe_duration_seconds > 3
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow response"
+          description: "Probe slow for {{ $labels.target }} (>{{ $value }}s)."
